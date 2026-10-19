@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QCM Anglais - Master MAALSI (Global & Mix)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- En-tête -->
+    <header class="bg-indigo-600 text-white shadow-md py-6 px-4">
+        <div class="max-w-3xl mx-auto text-center">
+            <h1 class="text-2xl md:text-3xl font-bold">QCM Anglais • Master MAALSI</h1>
+            <p class="text-indigo-200 mt-1 text-sm">Entraînement intelligent avec modes Mix</p>
+        </div>
+    </header>
+
+    <!-- Contenu Principal -->
+    <main class="max-w-xl w-full mx-auto p-4 my-8">
+
+        <!-- Écran de Configuration (Menu Principal) -->
+        <div id="setup-screen" class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <h2 class="text-xl font-bold text-slate-900 mb-6 text-center">Paramètres de la session</h2>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Niveau :</label>
+                    <select id="level-select" class="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:border-indigo-500">
+                        <option value="mix">Mix (Débutant + Intermédiaire) 🌟</option>
+                        <option value="debutant">Débutant (Mots Métier)</option>
+                        <option value="intermediaire">Intermédiaire (Expressions)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Sens de traduction :</label>
+                    <select id="direction-select" class="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:border-indigo-500">
+                        <option value="mix">Sens Mix (Aléatoire par question) 🔀</option>
+                        <option value="fr-en">Français ➔ Anglais</option>
+                        <option value="en-fr">Anglais ➔ Français</option>
+                    </select>
+                </div>
+
+                <button onclick="startQuiz()" class="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-indigo-100">
+                    Lancer l'entraînement 🚀
+                </button>
+            </div>
+        </div>
+
+        <!-- Écran du Quiz (Masqué au départ) -->
+        <div id="quiz-container" class="hidden bg-white rounded-2xl shadow-xl p-6 md:p-8 transition-all">
+            <div class="flex justify-between items-center mb-6 text-sm font-medium text-slate-500">
+                <span id="question-progress">Question 1 / 0</span>
+                <div class="flex items-center gap-3">
+                    <button onclick="returnToSetup()" class="text-xs text-indigo-600 hover:underline font-semibold">⚙️ Paramètres</button>
+                    <span id="score-counter" class="text-indigo-600 font-bold">Score : 0</span>
+                </div>
+            </div>
+
+            <div class="mb-6 text-center">
+                <span id="mode-badge" class="text-xs uppercase tracking-wider bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-semibold">Mode</span>
+                <h2 id="prompt-word" class="text-xl md:text-2xl font-extrabold text-slate-900 mt-4 leading-snug">Chargement...</h2>
+            </div>
+
+            <div id="options-container" class="space-y-3">
+                <!-- Les boutons seront injectés ici -->
+            </div>
+
+            <div class="mt-8 text-center">
+                <button id="next-btn" onclick="nextQuestion()" class="hidden w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-indigo-100">
+                    Question suivante
+                </button>
+            </div>
+        </div>
+
+        <!-- Écran de Fin -->
+        <div id="result-screen" class="hidden bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">🎯</div>
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">Session terminée !</h2>
+            <p id="final-score-text" class="text-slate-600 mb-6">Vous avez obtenu 0 sur 0.</p>
+            <button onclick="returnToSetup()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-indigo-100">
+                Changer de mode / Recommencer
+            </button>
+        </div>
+    </main>
+
+    <footer class="text-center py-4 text-xs text-slate-400">
+        CESI - Master MAALSI • Interface Universelle QCM
+    </footer>
+
+    <!-- Import du fichier de données global -->
+    <script src="global_data.js"></script>
+
+    <script>
+        let currentData = [];
+        let currentIndex = 0;
+        let score = 0;
+        let selectedDirection = 'fr-en';
+        let currentQuestionDirection = 'fr-en';
+        let answered = false;
+
+        function shuffle(array) {
+            return [...array].sort(() => Math.random() - 0.5);
+        }
+
+        function startQuiz() {
+            const level = document.getElementById('level-select').value;
+            selectedDirection = document.getElementById('direction-select').value;
+
+            if (typeof globalVocabData === 'undefined') {
+                alert("Erreur : Le fichier global_data.js est introuvable !");
+                return;
+            }
+
+            // Gestion du Niveau Mix
+            if (level === 'mix') {
+                let combined = [];
+                if (globalVocabData.debutant) combined = combined.concat(globalVocabData.debutant);
+                if (globalVocabData.intermediaire) combined = combined.concat(globalVocabData.intermediaire);
+                currentData = shuffle(combined);
+            } else {
+                if (!globalVocabData[level] || globalVocabData[level].length === 0) {
+                    alert("Erreur : Ce niveau est vide dans global_data.js !");
+                    return;
+                }
+                currentData = shuffle(globalVocabData[level]);
+            }
+
+            currentIndex = 0;
+            score = 0;
+
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+
+            loadQuestion();
+        }
+
+        function returnToSetup() {
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+        }
+
+        function loadQuestion() {
+            answered = false;
+            document.getElementById('next-btn').classList.add('hidden');
+
+            const currentObj = currentData[currentIndex];
+            document.getElementById('question-progress').innerText = `Question ${currentIndex + 1} / ${currentData.length}`;
+            document.getElementById('score-counter').innerText = `Score : ${score}`;
+
+            // Gestion du Sens Mix (aléatoire par question si sélectionné)
+            if (selectedDirection === 'mix') {
+                currentQuestionDirection = Math.random() < 0.5 ? 'fr-en' : 'en-fr';
+            } else {
+                currentQuestionDirection = selectedDirection;
+            }
+
+            // Affichage du badge de sens en cours
+            document.getElementById('mode-badge').innerText = currentQuestionDirection === 'fr-en' ? 'Traduisez en anglais ➔' : 'Traduisez en français ➔';
+
+            let promptText = "";
+            let correctAns = "";
+            let wrongPool = [];
+
+            if (currentQuestionDirection === 'fr-en') {
+                promptText = currentObj.fr;
+                correctAns = currentObj.en;
+                wrongPool = currentObj.hardEn || [];
+            } else {
+                promptText = currentObj.en;
+                correctAns = currentObj.fr;
+                wrongPool = currentObj.hardFr || [];
+            }
+
+            document.getElementById('prompt-word').innerText = promptText;
+
+            // Prendre 3 distracteurs pièges aléatoires
+            let selectedWrongOptions = shuffle(wrongPool).slice(0, 3);
+
+            if (selectedWrongOptions.length < 3) {
+                let fallback = currentData.filter(i => (currentQuestionDirection === 'fr-en' ? i.en : i.fr) !== correctAns).map(i => currentQuestionDirection === 'fr-en' ? i.en : i.fr);
+                selectedWrongOptions = shuffle([...selectedWrongOptions, ...fallback]).slice(0, 3);
+            }
+
+            let options = shuffle([...selectedWrongOptions, correctAns]);
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.className = "w-full text-left py-3 px-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 font-medium transition-all text-slate-700 text-sm md:text-base";
+                button.innerText = option;
+                button.onclick = () => selectAnswer(button, option, correctAns);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function selectAnswer(button, selected, correct) {
+            if (answered) return;
+            answered = true;
+
+            const buttons = document.getElementById('options-container').children;
+
+            for (let btn of buttons) {
+                btn.disabled = true;
+                if (btn.innerText === correct) {
+                    btn.classList.add('bg-emerald-50', 'border-emerald-500', 'text-emerald-700', 'font-semibold');
+                }
+            }
+
+            if (selected === correct) {
+                score++;
+                document.getElementById('score-counter').innerText = `Score : ${score}`;
+            } else {
+                button.classList.add('bg-rose-50', 'border-rose-500', 'text-rose-700');
+            }
+
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            if (currentIndex < currentData.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-score-text').innerText = `Vous avez obtenu ${score} sur ${currentData.length} (${Math.round((score/currentData.length)*100)}%).`;
+        }
+    </script>
+</body>
+</html>
